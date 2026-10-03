@@ -23,7 +23,7 @@ class BeatShake {
     // MusicVid параметры
     this.intensity = typeof options.intensity === "number" ? options.intensity : 5;       // Position Shake в px
     this.rotation = typeof options.rotation === "number" ? options.rotation : 0.35;       // Rotation Amount в градусах
-    this.scalePunch = typeof options.scale === "number" ? options.scale : 0.012;          // Bass Pulse (масштаб зума)
+    this.scalePunch = typeof options.scale === "number" ? options.scale : 0.016;          // Bass Pulse (масштаб зума, база 1.6%)
     this.sensitivity = typeof options.sensitivity === "number" ? options.sensitivity : 0.60; // Reactivity threshold (0–1)
     this.audioSmoothing = typeof options.audioSmoothing === "number" ? options.audioSmoothing : 0.89; // Analyser smoothing
     this.bpm = typeof options.bpm === "number" ? options.bpm : 128;                       // BPM трека для file:// режима
@@ -56,9 +56,11 @@ class BeatShake {
     this.velX = 0;
     this.velY = 0;
     this.velRot = 0;
-
-    // Медленно блуждающий угол импульса (натуральное органическое направление)
-    this.wanderAngle = Math.random() * Math.PI * 2;
+    this.wanderAngle = 0;
+    // Серия последовательных ударов баса (3-hit combo)
+    this.hitStreak = 0;             // счетчик серии ударов (1, 2, 3+)
+    this.lastHitTime = 0;           // время предыдущего удара
+    this.prevReactive = 0;          // предыдущее значение импульса
 
     // RequestAnimationFrame
     this._rafId = null;
@@ -196,13 +198,34 @@ class BeatShake {
     this.envelope = Math.max(0, Math.min(1.0, this.envelope));
 
     // ═══════════════════════════════════════════════════════════
+    //  ДЕТЕКЦИЯ СЕРИИ УДАРОВ БАСА (3-HIT BASS COMBO)
+    //  При серии из 2–3 последовательных ударов бочки зум усиливается!
+    // ═══════════════════════════════════════════════════════════
+    const isHitOnset = (reactiveImpulse > 0.25) && (reactiveImpulse - this.prevReactive > 0.10);
+    if (isHitOnset && (now - this.lastHitTime > 150)) {
+      if (now - this.lastHitTime < 750) {
+        this.hitStreak = Math.min(3, this.hitStreak + 1);
+      } else {
+        this.hitStreak = 1;
+      }
+      this.lastHitTime = now;
+    } else if (now - this.lastHitTime > 900) {
+      this.hitStreak = 0;
+    }
+    this.prevReactive = reactiveImpulse;
+
+    // Множитель комбо ударов: 1 удар = 1.0x, 2 удара = 1.4x, 3+ удара = 1.9x (зум до ~3%)
+    const streakScaleMult = 1.0 + (this.hitStreak >= 3 ? 0.9 : (this.hitStreak === 2 ? 0.4 : 0.0));
+    const streakForceMult = 1.0 + (this.hitStreak >= 3 ? 0.25 : (this.hitStreak === 2 ? 0.12 : 0.0));
+
+    // ═══════════════════════════════════════════════════════════
     //  4. ФИЗИЧЕСКИЙ ПРУЖИННЫЙ АМОРТИЗАТОР (Damped Spring)
     // ═══════════════════════════════════════════════════════════
     this.wanderAngle += 0.9 * dt;
 
-    const forceY = this.envelope * this.intensity * 0.9;
-    const forceX = Math.sin(this.wanderAngle) * this.envelope * this.intensity * 0.6;
-    const forceRot = Math.cos(this.wanderAngle * 0.75) * this.envelope * this.rotation;
+    const forceY = this.envelope * this.intensity * 0.9 * streakForceMult;
+    const forceX = Math.sin(this.wanderAngle) * this.envelope * this.intensity * 0.6 * streakForceMult;
+    const forceRot = Math.cos(this.wanderAngle * 0.75) * this.envelope * this.rotation * streakForceMult;
 
     const k = 22.0;       // жесткость пружины
     const damping = 6.8;  // демпфирование
@@ -219,8 +242,9 @@ class BeatShake {
     this.posY += this.velY * dt;
     this.rot += this.velRot * dt;
 
-    // Bass Pulse: импульс масштаба камеры под бочку
-    const targetScale = 1.0 + (this.envelope * this.scalePunch);
+    // Bass Pulse: импульс масштаба камеры под бочку (усиленный при серии ударов)
+    const effectiveScalePunch = this.scalePunch * streakScaleMult;
+    const targetScale = 1.0 + (this.envelope * effectiveScalePunch);
     this.currentScale += (targetScale - this.currentScale) * (1 - Math.exp(-14 * dt));
 
     // ═══════════════════════════════════════════════════════════
