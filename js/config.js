@@ -168,6 +168,7 @@ const PROFILE_CONFIG = {
     audioVisualizer: true,          // true = анимация эквалайзера при воспроизведении
     showPlayer: false,              // true = показать виджет плеера на карточке, false = скрыть
     randomFirstTrack: true,         // true = случайный выбор первого трека при открытии (shuffle), false = всегда начинать с 1-го
+    antiInspect: true,              // true = защита от просмотра кода (блокировка ПКМ, F12, Ctrl+Shift+I/J/C, Ctrl+U/S)
 
     // ═══════════════════════════════════════════════════════════
     //  CAM SHAKE / ТРЯСКА ПОД БИТ (в стиле MusicVid.org)
