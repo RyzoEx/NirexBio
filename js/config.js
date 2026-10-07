@@ -70,7 +70,7 @@ const PROFILE_CONFIG = {
       label: "...black...",
       description: "...",
       bgType: "video",              // "image" | "video" | "gif"
-      bgSrc: "assets/video.mp4",    // Путь к фоновому видео/картинке/GIF
+      bgSrc: "assets/video2.mp4",    // Путь к фоновому видео/картинке/GIF
       audioSrc: "assets/audio.mp3", // Первый (основной) трек. null = звук из видео
 
       // ═══════════════════════════════════════════════════════════
